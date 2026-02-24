@@ -302,18 +302,26 @@ async def list_projects() -> list[dict[str, Any]]:
 async def get_project_stats(project_name: str) -> dict[str, Any]:
     """Get project statistics and task counts."""
     try:
-        tasks = Task.query_tasks(project_name=project_name)
+        # Task.query_tasks returns task IDs (strings), not task objects
+        task_ids = Task.query_tasks(project_name=project_name)
 
-        status_counts = {}
-        for task in tasks:
-            status = task.status
-            status_counts[status] = status_counts.get(status, 0) + 1
+        status_counts: dict[str, int] = {}
+        task_types: set[str] = set()
+        for task_id in task_ids:
+            try:
+                task = Task.get_task(task_id=task_id)
+                status = task.status
+                status_counts[status] = status_counts.get(status, 0) + 1
+                if hasattr(task, "task_type") and task.task_type:
+                    task_types.add(task.task_type)
+            except Exception:
+                pass
 
         return {
             "project_name": project_name,
-            "total_tasks": len(tasks),
+            "total_tasks": len(task_ids),
             "status_breakdown": status_counts,
-            "task_types": list(set(task.type for task in tasks if hasattr(task, "type"))),
+            "task_types": list(task_types),
         }
     except Exception as e:
         return {"error": f"Failed to get project stats: {e!s}"}
@@ -408,7 +416,11 @@ async def search_tasks(query: str, project_name: str | None = None) -> list[dict
 
 def main() -> None:
     """Entry point for uvx clearml-mcp."""
-    initialize_clearml_connection()
+    try:
+        initialize_clearml_connection()
+    except RuntimeError as e:
+        import sys
+        print(f"Warning: ClearML connection check failed: {e}", file=sys.stderr)
     mcp.run(transport="stdio")
 
 
