@@ -1144,6 +1144,64 @@ class TestTaskSearch:
         assert result[0]["comment"] == ""  # getattr returns "" for None comment
 
 
+class TestTaskLogs:
+    """Test task console log retrieval behavior."""
+
+    @pytest.mark.asyncio
+    @patch("clearml_mcp.clearml_mcp.Task")
+    async def test_returns_log_lines_with_default_limit(self, mock_task):
+        """get_task_logs returns console output using default last_n_lines=100."""
+        task = Mock()
+        task.get_reported_console_output.return_value = ["line 1", "line 2", "line 3"]
+        mock_task.get_task.return_value = task
+
+        result = await clearml_mcp.get_task_logs.fn("task_123")
+
+        task.get_reported_console_output.assert_called_once_with(number_of_reports=100)
+        assert result["task_id"] == "task_123"
+        assert result["lines_requested"] == 100
+        assert result["lines_returned"] == 3
+        assert result["log"] == ["line 1", "line 2", "line 3"]
+
+    @pytest.mark.asyncio
+    @patch("clearml_mcp.clearml_mcp.Task")
+    async def test_respects_custom_last_n_lines(self, mock_task):
+        """get_task_logs passes last_n_lines to the ClearML API."""
+        task = Mock()
+        task.get_reported_console_output.return_value = ["only line"]
+        mock_task.get_task.return_value = task
+
+        result = await clearml_mcp.get_task_logs.fn("task_123", last_n_lines=50)
+
+        task.get_reported_console_output.assert_called_once_with(number_of_reports=50)
+        assert result["lines_requested"] == 50
+        assert result["lines_returned"] == 1
+
+    @pytest.mark.asyncio
+    @patch("clearml_mcp.clearml_mcp.Task")
+    async def test_handles_empty_console_output(self, mock_task):
+        """get_task_logs returns empty log list when task has no console output."""
+        task = Mock()
+        task.get_reported_console_output.return_value = []
+        mock_task.get_task.return_value = task
+
+        result = await clearml_mcp.get_task_logs.fn("task_123")
+
+        assert result["lines_returned"] == 0
+        assert result["log"] == []
+
+    @pytest.mark.asyncio
+    @patch("clearml_mcp.clearml_mcp.Task")
+    async def test_returns_error_for_invalid_task_id(self, mock_task):
+        """get_task_logs returns error message for invalid task ID."""
+        mock_task.get_task.side_effect = Exception("Task not found")
+
+        result = await clearml_mcp.get_task_logs.fn("invalid_id")
+
+        assert "error" in result
+        assert "Failed to get task logs" in result["error"]
+
+
 class TestMainEntryPoint:
     """Test main function and entry point."""
 

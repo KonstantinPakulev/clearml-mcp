@@ -40,7 +40,7 @@ async def get_task_info(task_id: str) -> dict[str, Any]:
 
 @mcp.tool()
 async def list_tasks(
-    project_name: str | None = None,
+    project_name: str,
     status: str | None = None,
     tags: list[str] | None = None,
 ) -> list[dict[str, Any]]:
@@ -85,6 +85,17 @@ async def get_task_parameters(task_id: str) -> dict[str, Any]:
         return task.get_parameters_as_dict()
     except Exception as e:
         return {"error": f"Failed to get task parameters: {e!s}"}
+
+
+@mcp.tool()
+async def get_task_hydra_config(task_id: str) -> dict[str, Any]:
+    """Get the Hydra overrides used to launch a task."""
+    try:
+        task = Task.get_task(task_id=task_id)
+        params = task.get_parameters_as_dict()
+        return params.get("Hydra", {})
+    except Exception as e:
+        return {"error": f"Failed to get Hydra config: {e!s}"}
 
 
 @mcp.tool()
@@ -369,7 +380,7 @@ async def compare_tasks(task_ids: list[str], metrics: list[str] | None = None) -
 
 
 @mcp.tool()
-async def search_tasks(query: str, project_name: str | None = None) -> list[dict[str, Any]]:
+async def search_tasks(query: str, project_name: str) -> list[dict[str, Any]]:
     """Search tasks by name, tags, or description."""
     try:
         # Task.query_tasks returns task IDs (strings), not task objects
@@ -412,6 +423,22 @@ async def search_tasks(query: str, project_name: str | None = None) -> list[dict
         return matching_tasks
     except Exception as e:
         return [{"error": f"Failed to search tasks: {e!s}"}]
+
+
+@mcp.tool()
+async def get_task_logs(task_id: str, last_n_lines: int = 100) -> dict[str, Any]:
+    """Get task console output logs, optionally limited to the last N lines."""
+    try:
+        task = Task.get_task(task_id=task_id)
+        log_lines = task.get_reported_console_output(number_of_reports=last_n_lines)
+        return {
+            "task_id": task_id,
+            "lines_requested": last_n_lines,
+            "lines_returned": len(log_lines),
+            "log": log_lines,
+        }
+    except Exception as e:
+        return {"error": f"Failed to get task logs: {e!s}"}
 
 
 def main() -> None:

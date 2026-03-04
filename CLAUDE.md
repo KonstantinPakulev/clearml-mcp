@@ -17,8 +17,10 @@ The ClearML MCP server provides comprehensive tools for AI agents to:
 - `get_task_info(task_id)` - Get ClearML task details, parameters, and status
 - `list_tasks(project_name, status, tags)` - List ClearML tasks with filters
 - `get_task_parameters(task_id)` - Get task hyperparameters and configuration
+- `get_task_hydra_config(task_id)` - Get the Hydra overrides used to launch a task
 - `get_task_metrics(task_id)` - Get task training metrics and scalars
 - `get_task_artifacts(task_id)` - Get task artifacts and outputs
+- `get_task_logs(task_id, last_n_lines=100)` - Get task console output (last N lines)
 
 ### Model Operations
 - `get_model_info(task_id)` - Get model metadata and configuration
