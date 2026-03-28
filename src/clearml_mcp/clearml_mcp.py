@@ -426,6 +426,18 @@ async def search_tasks(query: str, project_name: str) -> list[dict[str, Any]]:
 
 
 @mcp.tool()
+async def rename_task(task_id: str, new_name: str) -> dict[str, Any]:
+    """Rename a ClearML task."""
+    try:
+        task = Task.get_task(task_id=task_id)
+        old_name = task.name
+        task.set_name(new_name)
+        return {"task_id": task_id, "old_name": old_name, "new_name": new_name}
+    except Exception as e:
+        return {"error": f"Failed to rename task: {e!s}"}
+
+
+@mcp.tool()
 async def get_task_logs(task_id: str, last_n_lines: int = 100) -> dict[str, Any]:
     """Get task console output logs, optionally limited to the last N lines."""
     try:

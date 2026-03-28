@@ -21,6 +21,7 @@ The ClearML MCP server provides comprehensive tools for AI agents to:
 - `get_task_metrics(task_id)` - Get task training metrics and scalars
 - `get_task_artifacts(task_id)` - Get task artifacts and outputs
 - `get_task_logs(task_id, last_n_lines=100)` - Get task console output (last N lines)
+- `rename_task(task_id, new_name)` - Rename a task
 
 ### Model Operations
 - `get_model_info(task_id)` - Get model metadata and configuration
