@@ -78,6 +78,101 @@ async def list_tasks(
 
 
 @mcp.tool()
+async def get_recent_training_tasks(
+    project_name: str,
+    status: str | None = None,
+    limit: int = 3,
+) -> list[dict[str, Any]]:
+    """Get most recently created training tasks in a project.
+
+    Args:
+        project_name: ClearML project to search.
+        status: Optional task status filter (e.g., 'in_progress', 'completed').
+        limit: Maximum number of tasks to return (default: 3).
+    """
+    try:
+        task_filter: dict[str, list[str]] = {"type": ["training"]}
+        if status:
+            task_filter["status"] = [status]
+        tasks = Task.get_tasks(
+            project_name=project_name,
+            task_filter=task_filter,
+        )
+        tasks.sort(key=lambda t: t.data.created, reverse=True)
+        return [
+            {
+                "id": task.id,
+                "name": task.name,
+                "status": task.status,
+                "project": task.get_project_name(),
+                "created": str(task.data.created),
+                "last_update": str(task.data.last_update),
+                "tags": list(task.data.tags) if task.data.tags else [],
+                "type": str(task.task_type),
+                "comment": task.comment if hasattr(task, "comment") else None,
+            }
+            for task in tasks[:limit]
+        ]
+    except Exception as e:
+        return [{"error": f"Failed to get recent training tasks: {e!s}"}]
+
+
+@mcp.tool()
+async def get_recent_training_task(
+    task_id: str | None = None,
+    project_name: str | None = None,
+) -> dict[str, Any]:
+    """Get the most recent or a specific training task with checkpoint model IDs.
+
+    Exactly one of task_id or project_name must be provided:
+    - task_id: fetch a specific task by ID.
+    - project_name: fetch the most recently created training task in the project.
+
+    Returns task metadata + input_model_ids and last_checkpoint_id.
+    These model IDs can be loaded directly via Model(model_id=...) without
+    needing a task ID.
+    """
+    if not (task_id or project_name):
+        return {"error": "Either task_id or project_name must be provided"}
+    try:
+        if task_id:
+            task = Task.get_task(task_id=task_id)
+        else:
+            tasks = Task.get_tasks(
+                project_name=project_name,
+                task_filter={"type": ["training"]},
+            )
+            if not tasks:
+                return {"error": f"No training tasks found in project {project_name}"}
+            tasks.sort(key=lambda t: t.data.created, reverse=True)
+            task = tasks[0]
+
+        models = task.models
+        input_model_ids = [m.id for m in models.get("input", [])] if models.get("input") else []
+
+        last_checkpoint_id = None
+        for model in models.get("output", []):
+            if model.url and model.url.endswith("last.ckpt"):
+                last_checkpoint_id = model.id
+                break
+
+        return {
+            "id": task.id,
+            "name": task.name,
+            "status": task.status,
+            "project": task.get_project_name(),
+            "created": str(task.data.created),
+            "last_update": str(task.data.last_update),
+            "tags": list(task.data.tags) if task.data.tags else [],
+            "type": str(task.task_type),
+            "input_model_ids": input_model_ids,
+            "last_checkpoint_id": last_checkpoint_id,
+        }
+    except Exception as e:
+        return {"error": f"Failed to get recent training task: {e!s}"}
+
+
+@mcp.tool()
 async def get_task_parameters(task_id: str) -> dict[str, Any]:
     """Get task hyperparameters and configuration."""
     try:
